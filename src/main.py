@@ -1,32 +1,43 @@
-import socket
+import argparse
+from node.node import start_node_server
+from main_server.main_server import start_main_server
 
-def start_server(host, port):
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(10)
+def parse_args():
+    # Create an ArgumentParser
+    parser = argparse.ArgumentParser(description="P2P file sharing server")
 
-    print(f"Server listening on {host}:{port}")
+    # Add the -p/--port argument
+    parser.add_argument(
+        "-ms", "--mainserver", action="store_true", help="Runs a main server instance"
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=6000,
+        help="If given use specific port if not use default (6000)",
+    )
+    parser.add_argument(
+        "-ip",
+        "--host",
+        default="127.0.0.1",
+        help="If given use specific host if not use default (127.0.0.1)",
+    )
 
-    while True:
-        print("Waiting for a connection...")
-        client_socket, client_address = server_socket.accept()
-        print(f"Accepted connection from {client_address}")
+    # Parse the command-line arguments
+    args = parser.parse_args()
 
-        data = client_socket.recv(1024).decode("utf-8")
-        print(f"Received data: {data}")
+    return args
 
-        response = "Hello, World!"
-        client_socket.send(response.encode("utf-8"))
-
-        client_socket.close()
-        print("Connection closed\n")
 
 def main():
-    port = 6000
-    host = "127.0.0.1"
+    args = vars(parse_args())
+    run_main_server = args.pop("mainserver")
 
-    start_server(host,port)
-
+    if run_main_server:
+        start_main_server(**args)
+    else:
+        start_node_server(**args)
 
 if __name__ == "__main__":
     main()
