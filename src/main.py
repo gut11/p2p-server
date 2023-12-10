@@ -3,10 +3,8 @@ from node.node import start_node_server
 from main_server.main_server import start_main_server
 
 def parse_args():
-    # Create an ArgumentParser
     parser = argparse.ArgumentParser(description="P2P file sharing server")
 
-    # Add the -p/--port argument
     parser.add_argument(
         "-ms", "--mainserver", action="store_true", help="Runs a main server instance"
     )
@@ -24,7 +22,6 @@ def parse_args():
         help="If given use specific host if not use default (127.0.0.1)",
     )
 
-    # Parse the command-line arguments
     args = parser.parse_args()
 
     return args

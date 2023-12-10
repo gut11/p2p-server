@@ -1,14 +1,54 @@
 import socket
+import threading
 
-def start_node_server(host="127.0.0.1", port=6000):
+def create_udp_socket():
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return udp_socket
+
+def send_udp_message(socket, message, server_address):
+    timeout = 10 
+    max_retries = 4
+    socket.settimeout(timeout)
+    last_exception = None
+    for retry in range(max_retries):
+        if retry > 0:
+            print(f"Retrying... (Retry {retry}/{max_retries - 1})")
+        try:
+            socket.sendto(message.encode('utf-8'), server_address)
+            response, _ = socket.recvfrom(1024)
+            return response
+        except socket.timeout as e:
+            if retry != max_retries - 1:
+                print(f"Server timeout error:{e} \n")
+            last_exception = e
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            last_exception = e 
+    if last_exception is not None:
+        raise last_exception
+
+def register_on_server(socket, server_address):
+    registration_message = "";
+    try:
+        response = send_udp_message(socket, registration_message, server_address)
+        print("Registration on the server completed!")
+        print(f"Server response: {response}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+def start_tcp_server(host, server_ready):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(10)
+    server_socket.bind((host, 0))
+    _, port = server_socket.getsockname()
+    server_socket.listen(4096)
 
     print(f"Server listening on {host}:{port}")
 
+    server_ready.start()
+
     while True:
-        print("Waiting for a connection...")
+        print("Waiting for a file request...")
         client_socket, client_address = server_socket.accept()
         print(f"Accepted connection from {client_address}")
 
@@ -20,3 +60,13 @@ def start_node_server(host="127.0.0.1", port=6000):
 
         client_socket.close()
         print("Connection closed\n")
+
+
+def start_node_server(host="127.0.0.1"):
+    server_address = (host, 54494)
+    server_ready_event = threading.Event()
+    tcp_socket_thread = threading.Thread(target=start_tcp_server, args=(host, server_ready_event)).start()
+    udp_socket = create_udp_socket()
+    server_ready_event.wait()
+    
+

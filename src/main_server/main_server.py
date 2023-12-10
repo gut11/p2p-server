@@ -8,10 +8,8 @@ def start_main_server(host="127.0.0.1", port=6000):
     clients = {}  
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server.bind((host,port))
-    t1 = threading.Thread(target=receive, args=(server,messages))
-    t2 = threading.Thread(target=process_messages, args=(server,messages))
-    t1.start()
-    t2.start()
+    t1 = threading.Thread(target=receive, args=(server,messages)).start()
+    t2 = threading.Thread(target=process_messages, args=(server,messages)).start()
 
 def receive(server,messages):
     while True:
