@@ -1,12 +1,18 @@
 import socket
 import threading
 
+from node.user_actions import create_user_password
+
+from node.utils import generate_file_list
+
+
 def create_udp_socket():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     return udp_socket
 
+
 def send_udp_message(socket, message, server_address):
-    timeout = 10 
+    timeout = 5
     max_retries = 4
     socket.settimeout(timeout)
     last_exception = None
@@ -14,7 +20,7 @@ def send_udp_message(socket, message, server_address):
         if retry > 0:
             print(f"Retrying... (Retry {retry}/{max_retries - 1})")
         try:
-            socket.sendto(message.encode('utf-8'), server_address)
+            socket.sendto(message.encode("utf-8"), server_address)
             response, _ = socket.recvfrom(1024)
             return response
         except socket.timeout as e:
@@ -23,27 +29,33 @@ def send_udp_message(socket, message, server_address):
             last_exception = e
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-            last_exception = e 
+            last_exception = e
     if last_exception is not None:
         raise last_exception
 
-def register_on_server(socket, server_address):
-    registration_message = "";
+
+def register_on_server(socket, server_address, dir, client_info):
+    client_info.password = create_user_password(client_info)
+    client_info.file_list = generate_file_list(dir)
+    registration_message = f"REG {client_info.password} {client_info.port} {client_info.files_list}"
     try:
         response = send_udp_message(socket, registration_message, server_address)
         print("Registration on the server completed!")
         print(f"Server response: {response}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(
+            f"An error occurred while trying to register the client on the server: {e}"
+        )
+        raise e
 
 
-def start_tcp_server(host, server_ready):
+def start_tcp_server(server_ready, client_info):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, 0))
-    _, port = server_socket.getsockname()
+    server_socket.bind((client_info.host, 0))
+    _, client_info.port = server_socket.getsockname()
     server_socket.listen(4096)
 
-    print(f"Server listening on {host}:{port}")
+    print(f"Server listening on {client_info.host}:{client_info.port}")
 
     server_ready.start()
 
@@ -62,11 +74,12 @@ def start_tcp_server(host, server_ready):
         print("Connection closed\n")
 
 
-def start_node_server(host="127.0.0.1"):
+def start_node_server(host="127.0.0.1", ):
     server_address = (host, 54494)
+    client_info = {"password": None, "file_list": "", "auto_pass": False, "host":host, "port": -1}
     server_ready_event = threading.Event()
-    tcp_socket_thread = threading.Thread(target=start_tcp_server, args=(host, server_ready_event)).start()
+    tcp_socket_thread = threading.Thread(
+        target=start_tcp_server, args=(host, server_ready_event)
+    ).start()
     udp_socket = create_udp_socket()
     server_ready_event.wait()
-    
-
