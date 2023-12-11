@@ -3,9 +3,9 @@
 https://github.com/gut11/p2p-server
 
 ## Nome dos integrantes:
--Tiago de Jesus Chehab – 2211194
--Lucas Santana de Souza –  2211131
--Augusto Gomez Soares - 2311146
+- Tiago de Jesus Chehab – 2211194
+- Lucas Santana de Souza –  2211131
+- Augusto Gomez Soares - 2311146
 
 ## Relatório - Trabalho Prático Redes
 Durante o dia 11 de novembro de 2023, o grupo composto pelos integrantes acima, foi criado, com o intuito de desenvolver o projeto final da matéria “Redes de Computadores e Internet", gerida pelo professor Jeremias.
