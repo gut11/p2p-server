@@ -14,9 +14,9 @@ Durante a leitura do arquivo de especificação, foi notado como seria a separa�
 
 Desta forma nossa equipe se dividiu em algumas funções:
 
-Augusto: ficou responsável pela parte de Implementação do Cliente, visto que o mesmo era o com mais experiência com esse tipo de problema.
-Tiago: ficou responsável pelo Relatório Técnico e auxílio da Implementação do Servidor.
-Lucas: ficou responsável pela Implementação do Servidor.
+- *Augusto*: ficou responsável pela parte de Implementação do Cliente, visto que o mesmo era o com mais experiência com esse tipo de problema.
+- *Tiago*: ficou responsável pelo Relatório Técnico e auxílio da Implementação do Servidor.
+- *Lucas*: ficou responsável pela Implementação do Servidor.
 
 Para o desenvolvimento do nosso projeto é importante frisar que apesar do separamento das funções de cada participante, todos trabalharam em conjunto em todas as áreas de produção.  
 
