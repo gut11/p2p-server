@@ -241,6 +241,7 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
         "password": None,
         "file_list": "",
         "file_dir": file_dir,
+        "available_files": [{"md5": "", "name": "", "address": ("", -1)}],
         "host": host,
         "port": -1,
     }
