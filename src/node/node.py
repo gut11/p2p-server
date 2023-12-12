@@ -255,3 +255,4 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
     server_ready_event.wait()
     register_on_server(udp_socket, server_address, client_info["file_dir"], client_info)
     send_file_list_req(udp_socket, server_address)
+
