@@ -49,6 +49,16 @@ def register_on_server(socket, server_address, dir, client_info):
         raise e
 
 
+def send_file_list_req(socket, server_address):
+    try:
+        response = send_udp_message(socket, "LST ", server_address)
+        print("File list fetch completed!")
+        print(f"Server response: {response}")
+    except Exception as e:
+        print(f"An error occurred while trying to get file list on the server: {e}")
+        raise e
+
+
 def start_tcp_server(server_ready, client_info):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((client_info["host"], 0))
@@ -76,7 +86,14 @@ def start_tcp_server(server_ready, client_info):
 
 def start_node_server(host="127.0.0.1", file_dir="./files"):
     server_address = (host, 8000)
-    client_info = {"password": None, "file_list": "", "file_dir": file_dir, "auto_pass": False, "host":host, "port": -1}
+    client_info = {
+        "password": None,
+        "file_list": "",
+        "file_dir": file_dir,
+        "auto_pass": False,
+        "host": host,
+        "port": -1,
+    }
     print(client_info)
     server_ready_event = threading.Event()
     tcp_socket_thread = threading.Thread(
@@ -84,4 +101,5 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
     ).start()
     udp_socket = create_udp_socket()
     server_ready_event.wait()
-    register_on_server(udp_socket,server_address, client_info["file_dir"], client_info)
+    register_on_server(udp_socket, server_address, client_info["file_dir"], client_info)
+    send_file_list_req(udp_socket, server_address)

@@ -7,7 +7,6 @@ class P2PServer:
         self.host = host
         self.port = port
         self.clients = {}
-        self.shared_files = {}
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server_socket:
@@ -81,7 +80,6 @@ class P2PServer:
                 "port": port,
                 "files": files_list,
             }
-            self.update_shared_files()
             self.send_registration_response(client_address, len(files_list))
         else:
             self.send_error_response(client_address)
@@ -108,7 +106,6 @@ class P2PServer:
                 md5_files = self.process_files(client_files)
                 self.clients[client_address]["port"] = port
                 self.clients[client_address]["files"] = md5_files
-                self.update_shared_files()
                 self.send_registration_response(client_address, len(md5_files))
             else:
                 self.send_password_error_response(client_address)
@@ -129,15 +126,17 @@ class P2PServer:
 
     def generate_files_list(self):
         files_list = []
-        for md5, file_info in self.shared_files.items():
-            file_entry = f"{md5},{file_info['name']}"
-            clients_list = ";".join(
-                [
-                    f"{client['client']}:{client['port']}"
-                    for client in file_info["clients"]
-                ]
-            )
-            files_list.append(f"{file_entry},{clients_list}")
+        for address, client_infos in self.clients.items():
+            print(address)
+            files = client_infos.get("files", [])
+
+            for file in files:
+                print(file)
+                md5, name = file.values()
+                print(md5, name)
+                file_entry = f"{md5},{name}"
+                clients_list = ";".join([f"{address[0]}:{address[1]}"])
+                files_list.append(f"{file_entry},{clients_list}")
 
         return ";".join(files_list)
 
@@ -148,7 +147,6 @@ class P2PServer:
         if client_address in self.clients and password and port:
             if self.clients[client_address]["password"] == password:
                 del self.clients[client_address]
-                self.update_shared_files()
                 self.send_disconnect_response(client_address)
             else:
                 self.send_password_error_response(client_address)
@@ -158,18 +156,6 @@ class P2PServer:
     def send_disconnect_response(self, client_address):
         response = {"type": "OK", "message": "CLIENT_FINISHED"}
         self.send_message(client_address, response)
-
-    def update_shared_files(self):
-        self.shared_files = {}
-        for client_address, client_info in self.clients.items():
-            for file_info in client_info["files"]:
-                md5 = file_info["md5"]
-                name = file_info["name"]
-                if md5 not in self.shared_files:
-                    self.shared_files[md5] = []
-                self.shared_files[md5].append(
-                    {"name": name, "client": client_info["password"]}
-                )
 
     def send_registration_response(self, client_address, num_registered_files):
         response = {"type": "OK", "message": f"{num_registered_files}_REGISTERED_FILES"}
