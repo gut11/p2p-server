@@ -1,9 +1,15 @@
 import socket
 import threading
 
-from node.user_actions import create_user_password
-
-from node.utils import create_download_dir, generate_file_list
+from node.utils import (
+    create_download_dir,
+    find_file_position_by_hash,
+    generate_file_list,
+    generate_random_password,
+    get_file_size,
+    monitor_directory,
+    parse_file_info_string,
+)
 
 
 def create_udp_socket():
@@ -61,9 +67,14 @@ def send_tcp_message(socket, message, server_address):
 
 
 def register_on_server(socket, server_address, dir, client_info):
-    client_info["password"] = create_user_password(client_info)
-    client_info["file_list"] = generate_file_list(dir)
-    registration_message = f'REG {client_info["password"]} {client_info["port"]} {client_info["file_list"]}'
+    file_list_string = generate_file_list(dir)
+    client_info["file_list"] = parse_file_info_string(file_list_string)
+    client_info["password"] = generate_random_password()
+    print(client_info["file_list"])
+
+    registration_message = (
+        f'REG {client_info["password"]} {client_info["port"]} {file_list_string}'
+    )
     try:
         response = send_udp_message(socket, registration_message, server_address)
         print("Registration on the server completed!")
@@ -84,24 +95,29 @@ def send_file_list_req(socket, server_address):
         print(f"An error occurred while trying to get file list on the server: {e}")
         raise e
 
+
 def get_file(socket, node_address, file_name, file_hash, download_dir):
     file_path = download_dir + "/" + file_name
     message = "GET " + file_hash
-    
+
     try:
         response = send_tcp_message(socket, message, node_address)
         if response is not None:
             response_string = response.decode()
             if is_file_available(response):
-                response_status, response_file_hash, file_size_and_file_bytes = response_string.split(" ", 3)
+                (
+                    response_status,
+                    response_file_hash,
+                    file_size_and_file_bytes,
+                ) = response_string.split(" ", 3)
                 file_size = file_size_and_file_bytes.split(" ", 1)[0]
                 position_where_file_starts = find_byte_file_start(response)
-                download_file(socket, file_path, file_size, position_where_file_starts)
+                file_first_bytes = response[position_where_file_starts:]
+                download_file(socket, file_name, file_path, file_size, file_first_bytes)
     except Exception as e:
-            print(
-                f"An error occurred while trying get file from another node: {e}"
-            )
-            raise e
+        print(f"An error occurred while trying get file from another node: {e}")
+        raise e
+
 
 def find_byte_file_start(byte_response):
     space_count = 0
@@ -116,6 +132,7 @@ def find_byte_file_start(byte_response):
 
     return position
 
+
 def is_file_available(response):
     if response.startswith("OK"):
         return True
@@ -124,27 +141,81 @@ def is_file_available(response):
         return False
 
 
-def download_file(socket, file_path, file_size, first_1024_bytes):
+def download_file(socket, file_name, file_path, file_size, first_bytes):
     BUFFER_SIZE = 4096
 
-    file = open(file_path, 'wb')
+    file = open(file_path, "wb")
+    file.write(first_bytes)
     print(f"Receiving file of size {file_size} bytes")
 
-    received_size = 0
+    received_size = len(first_bytes)
 
-    while received_size < file_size:
+    while True:
         data = socket.recv(BUFFER_SIZE)
         if not data:
             break
-        received_size += len(data)
-
         file.write(data)
+        received_size += len(data)
 
         print(f"Received: {received_size} bytes / {file_size} bytes")
 
     print(f"File {file_name} received successfully")
 
-def send_file():
+
+def handle_req(socket, client_info):
+    req = socket.recv(1024).decode("utf-8")
+    file_list = client_info["file_list"]
+    file_dir = client_info["file_dir"]
+    if req.startswith("GET"):
+        parts = req.split(" ")
+        if len(parts) >= 2:
+            hash_to_find = parts[1]
+            file_position = find_file_position_by_hash(hash_to_find, file_list)
+            if file_position != -1:
+                send_file(socket, file_list[file_position], file_dir)
+            else:
+                handle_bad_request(socket, "File not found")
+        else:
+            handle_bad_request(socket, "Request bad formatted")
+    else:
+        handle_bad_request(socket, "Request bad formatted")
+
+
+def handle_bad_request(socket, message):
+    response = {"type": "ERR", "message": message}
+    socket.send(response)
+    socket.close()
+
+
+def send_file(socket, file_info, file_dir):
+    BUFFER_SIZE = 4096
+    file_md5 = file_info["md5"]
+    file_name = file_info["file_name"]
+    file_path = file_dir + file_name
+    file_size = get_file_size(file_path)
+
+    message = "OK " + file_md5 + " " + file_size + " "
+
+    try:
+        socket.send(message)
+        with open(file_path, "rb") as file:
+            while True:
+                data = file.read(BUFFER_SIZE)
+                if not data:
+                    break
+                socket.sendall(data)
+    except FileNotFoundError:
+        socket.send("File not found".encode())
+        raise FileNotFoundError
+    except Exception as e:
+        socket.send(str(e).encode())
+        raise e
+    finally:
+        socket.close()
+
+
+# def update_files_on_server():
+#     send_udp_message()
 
 
 def start_tcp_server(server_ready, client_info):
@@ -160,16 +231,7 @@ def start_tcp_server(server_ready, client_info):
     while True:
         print("Waiting for a file request...")
         client_socket, client_address = server_socket.accept()
-        print(f"Accepted connection from {client_address}")
-
-        data = client_socket.recv(1024).decode("utf-8")
-        print(f"Received data: {data}")
-
-        response = "Hello, World!"
-        client_socket.send(response.encode("utf-8"))
-
-        client_socket.close()
-        print("Connection closed\n")
+        answer_node_req_thread = threading.Thread(target=handle_req,args=(client_socket,client_info)).start()
 
 
 def start_node_server(host="127.0.0.1", file_dir="./files"):
@@ -179,12 +241,12 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
         "password": None,
         "file_list": "",
         "file_dir": file_dir,
-        "auto_pass": False,
         "host": host,
         "port": -1,
     }
     print(client_info)
     create_download_dir(download_dir)
+    # monitor_directory(download_dir, )
     server_ready_event = threading.Event()
     tcp_socket_thread = threading.Thread(
         target=start_tcp_server, args=(server_ready_event, client_info)

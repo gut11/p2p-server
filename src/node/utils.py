@@ -1,5 +1,6 @@
 import hashlib
 import os
+import time
 import secrets
 import string
 
@@ -38,6 +39,25 @@ def generate_random_password(length=32, forbidden_characters={";", ",", " "}):
     password = ''.join(secrets.choice(list(allowed_characters)) for _ in range(length))
     return password
 
+def find_file_position_by_hash(hash_to_find, file_list):
+    count = 0
+    for file_info in file_list:
+        if file_info['md5'] == hash_to_find:
+            return count
+        count += 1
+
+    return -1
+
+def parse_file_info_string(file_info_string):
+    file_info_list = file_info_string.split(';')
+
+    file_dict_list = []
+    for file_info in file_info_list:
+        md5, file_name = file_info.split(',')
+        file_dict = {'md5': md5, 'file_name': file_name}
+        file_dict_list.append(file_dict)
+
+    return file_dict_list
 
 def create_download_dir(download_dir):
     dir_path = download_dir
@@ -65,3 +85,18 @@ def get_file_size(file_path):
     except Exception as e:
         print(f"Error: {e}")
         return None
+
+def monitor_directory(directory_path, callback_function):
+    previous_files = set()
+
+    while True:
+        current_files = set(os.listdir(directory_path))
+
+        added_files = current_files - previous_files
+        removed_files = previous_files - current_files
+
+        if added_files or removed_files:
+            callback_function(added_files, removed_files)
+
+        previous_files = current_files
+        time.sleep(1)
