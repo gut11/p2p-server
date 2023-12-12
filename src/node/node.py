@@ -3,7 +3,7 @@ import threading
 
 from node.user_actions import create_user_password
 
-from node.utils import generate_file_list
+from node.utils import create_download_dir, generate_file_list
 
 
 def create_udp_socket():
@@ -34,6 +34,32 @@ def send_udp_message(socket, message, server_address):
         raise last_exception
 
 
+def send_tcp_message(socket, message, server_address):
+    timeout = 5
+    max_retries = 4
+    socket.settimeout(timeout)
+    last_exception = None
+
+    for retry in range(max_retries):
+        if retry > 0:
+            print(f"Retrying... (Retry {retry}/{max_retries - 1})")
+        try:
+            socket.connect(server_address)
+            socket.sendall(message.encode("utf-8"))
+            response = socket.recv(1024)
+            return response
+        except socket.timeout as e:
+            if retry != max_retries - 1:
+                print(f"Server timeout error: {e}\n")
+            last_exception = e
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            last_exception = e
+
+    if last_exception is not None:
+        raise last_exception
+
+
 def register_on_server(socket, server_address, dir, client_info):
     client_info["password"] = create_user_password(client_info)
     client_info["file_list"] = generate_file_list(dir)
@@ -57,6 +83,68 @@ def send_file_list_req(socket, server_address):
     except Exception as e:
         print(f"An error occurred while trying to get file list on the server: {e}")
         raise e
+
+def get_file(socket, node_address, file_name, file_hash, download_dir):
+    file_path = download_dir + "/" + file_name
+    message = "GET " + file_hash
+    
+    try:
+        response = send_tcp_message(socket, message, node_address)
+        if response is not None:
+            response_string = response.decode()
+            if is_file_available(response):
+                response_status, response_file_hash, file_size_and_file_bytes = response_string.split(" ", 3)
+                file_size = file_size_and_file_bytes.split(" ", 1)[0]
+                position_where_file_starts = find_byte_file_start(response)
+                download_file(socket, file_path, file_size, position_where_file_starts)
+    except Exception as e:
+            print(
+                f"An error occurred while trying get file from another node: {e}"
+            )
+            raise e
+
+def find_byte_file_start(byte_response):
+    space_count = 0
+    position = None
+
+    for i, byte in enumerate(byte_response):
+        if byte == 32:
+            space_count += 1
+            if space_count == 3:
+                position = i + 1
+                break
+
+    return position
+
+def is_file_available(response):
+    if response.startswith("OK"):
+        return True
+    else:
+        print(response)
+        return False
+
+
+def download_file(socket, file_path, file_size, first_1024_bytes):
+    BUFFER_SIZE = 4096
+
+    file = open(file_path, 'wb')
+    print(f"Receiving file of size {file_size} bytes")
+
+    received_size = 0
+
+    while received_size < file_size:
+        data = socket.recv(BUFFER_SIZE)
+        if not data:
+            break
+        received_size += len(data)
+
+        file.write(data)
+
+        print(f"Received: {received_size} bytes / {file_size} bytes")
+
+    print(f"File {file_name} received successfully")
+
+def send_file():
 
 
 def start_tcp_server(server_ready, client_info):
@@ -86,6 +174,7 @@ def start_tcp_server(server_ready, client_info):
 
 def start_node_server(host="127.0.0.1", file_dir="./files"):
     server_address = (host, 8000)
+    download_dir = "./p2p-downloads"
     client_info = {
         "password": None,
         "file_list": "",
@@ -95,6 +184,7 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
         "port": -1,
     }
     print(client_info)
+    create_download_dir(download_dir)
     server_ready_event = threading.Event()
     tcp_socket_thread = threading.Thread(
         target=start_tcp_server, args=(server_ready_event, client_info)

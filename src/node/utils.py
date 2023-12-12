@@ -38,6 +38,15 @@ def generate_random_password(length=32, forbidden_characters={";", ",", " "}):
     password = ''.join(secrets.choice(list(allowed_characters)) for _ in range(length))
     return password
 
+
+def create_download_dir(download_dir):
+    dir_path = download_dir
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+        print(f"Directory '{dir_path}' created.")
+    else:
+        print(f"Directory '{dir_path}' already exists.")
+
 def calculate_md5(file, chunk_size=(64 * 1024)):
     md5_hash = hashlib.md5()
     chunk = file.read(chunk_size)
@@ -45,3 +54,14 @@ def calculate_md5(file, chunk_size=(64 * 1024)):
         chunk = file.read(chunk_size)
         md5_hash.update(chunk)
     return md5_hash.hexdigest()
+
+def get_file_size(file_path):
+    try:
+        size = os.path.getsize(file_path)
+        return size
+    except FileNotFoundError:
+        print(f"Error: File '{file_path}' not found.")
+        return None
+    except Exception as e:
+        print(f"Error: {e}")
+        return None

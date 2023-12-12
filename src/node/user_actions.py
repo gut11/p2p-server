@@ -32,4 +32,3 @@ def print_menu_wait_input(menu_name, options):
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-def 
