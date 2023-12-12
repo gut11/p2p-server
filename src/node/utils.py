@@ -11,7 +11,7 @@ def generate_file_list(dir):
     for file in files_list:
         file_path = os.path.join(dir, file)
         if os.path.isfile(file_path):
-            file_bytes = open(file, 'rb')
+            file_bytes = open(file_path, 'rb')
             file_hash = calculate_md5(file_bytes)
             files_hash_list.append(file_hash)
     return merge_hash_file_lists(files_hash_list, files_name_list)
@@ -27,9 +27,15 @@ def create_file_names_list(file_list,dir):
             files_list.append(file_name)
     return files_list
 
-def generate_random_password(length=32):
-    characters = string.ascii_letters + string.digits + string.punctuation
-    password = ''.join(secrets.choice(characters) for _ in range(length))
+def generate_random_password(length=32, forbidden_characters={";", ",", " "}):
+    # Define the set of allowed characters
+    allowed_characters = set(string.ascii_letters + string.digits + string.punctuation)
+
+    # Remove forbidden characters from the allowed set
+    allowed_characters -= set(forbidden_characters)
+
+    # Generate the password using only allowed characters
+    password = ''.join(secrets.choice(list(allowed_characters)) for _ in range(length))
     return password
 
 def calculate_md5(file, chunk_size=(64 * 1024)):

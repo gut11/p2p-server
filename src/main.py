@@ -9,13 +9,6 @@ def parse_args():
         "-ms", "--mainserver", action="store_true", help="Runs a main server instance"
     )
     parser.add_argument(
-        "-p",
-        "--port",
-        type=int,
-        default=6000,
-        help="If given use specific port if not use default (6000)",
-    )
-    parser.add_argument(
         "-ip",
         "--host",
         default="127.0.0.1",

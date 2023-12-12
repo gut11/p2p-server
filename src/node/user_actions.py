@@ -15,7 +15,7 @@ def create_user_password(client_info):
     if user_option == 1:
         return input("Type your password: ")
     if user_option == 2:
-        client_info.auto_pass = True
+        client_info["auto_pass"] = True
         return generate_random_password()
 
 def print_menu_wait_input(menu_name, options):
