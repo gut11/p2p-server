@@ -2,6 +2,7 @@ import hashlib
 import os
 import time
 import secrets
+import re
 import string
 
 def generate_file_list(dir):
@@ -48,6 +49,12 @@ def find_file_position_by_hash(hash_to_find, file_list):
 
     return -1
 
+def find_file_data_by_hash(md5_string, available_files):
+    for file_info in available_files:
+        if file_info["md5"] == md5_string:
+            return file_info
+    return None
+
 def parse_file_info_string(file_info_string):
     file_info_list = file_info_string.split(';')
 
@@ -71,9 +78,13 @@ def calculate_md5(file, chunk_size=(64 * 1024)):
     md5_hash = hashlib.md5()
     chunk = file.read(chunk_size)
     while chunk:
-        chunk = file.read(chunk_size)
         md5_hash.update(chunk)
+        chunk = file.read(chunk_size)
     return md5_hash.hexdigest()
+
+def is_valid_md5(hash_string):
+    md5_pattern = re.compile(r"^[a-fA-F0-9]{32}$")
+    return bool(md5_pattern.match(hash_string))
 
 def get_file_size(file_path):
     try:
@@ -86,8 +97,26 @@ def get_file_size(file_path):
         print(f"Error: {e}")
         return None
 
-def monitor_directory(directory_path, callback_function):
-    previous_files = set()
+def process_file_info(response):
+    files = response.split(';')
+
+    file_list = []
+    for file_info in files:
+        parts = file_info.split(',')
+
+        if len(parts) == 3:
+            md5 = parts[0]
+            name = parts[1]
+            address = parts[2].split(":")
+
+            file_list.append({'md5': md5, 'name': name, 'address': address})
+        else:
+            return None
+    return file_list
+
+
+def monitor_directory(directory_path, callback_function, *callback_params):
+    previous_files = set(os.listdir(directory_path))
 
     while True:
         current_files = set(os.listdir(directory_path))
@@ -96,7 +125,9 @@ def monitor_directory(directory_path, callback_function):
         removed_files = previous_files - current_files
 
         if added_files or removed_files:
-            callback_function(added_files, removed_files)
+            print("Change in the shared files dir. Updating file list on the server!")
+            callback_function(*callback_params)
 
         previous_files = current_files
         time.sleep(1)
+

@@ -1,15 +1,7 @@
 import secrets
 import string
 
-from node.utils import generate_random_password
-
-def main_menu():
-    menu_options = [
-        "List files",
-        "Get file",
-        "Exit"
-    ]
-    user_input = print_menu_wait_input("Main Menu", menu_options)
+from node.utils import generate_random_password, is_valid_md5
 
 def print_menu_wait_input(menu_name, options):
     while True:

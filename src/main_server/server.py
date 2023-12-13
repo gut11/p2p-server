@@ -1,5 +1,4 @@
 import socket
-import json
 
 def parse_hash_file_format(files_string):
     files = files_string.split(";")
@@ -16,6 +15,14 @@ def split_registration_info(message):
 
     if len(parts) == 4:
         return parts[1], parts[2], parts[3]
+    else:
+        return None
+
+def split_req_info(message):
+    parts = message.split(" ")
+
+    if len(parts) != 0:
+        return parts
     else:
         return None
 
@@ -61,34 +68,38 @@ def process_files(files):
     return md5_files
 
 def handle_update(client_address, message, clients):
-    password = message.get("password")
-    client_files = message.get("files")
-    port = message.get("port")
+    result = split_req_info(message)
+    password = None
+    port = None
+    files = None
 
-    if (
-        client_address in clients
-        and password
-        and port
-        and client_files is not None
-    ):
-        if clients[client_address]["password"] == password:
-            md5_files = process_files(client_files)
-            clients[client_address]["port"] = port
-            clients[client_address]["files"] = md5_files
-            send_registration_response(client_address, len(md5_files))
-        else:
+    if result is not None and len(result) >= 3:
+        _, password, port, files, *_= result
+
+    if client_address in clients and password and port:
+        if check_password(clients[client_address]["password"], password):
+            files_list = parse_hash_file_format(files)
+
+            clients[client_address] = {
+                "password": password,
+                "port": port,
+                "files": files_list,
+            }
+            send_registration_response(client_address, len(files_list))
+        else: 
             send_password_error_response(client_address)
     else:
         send_error_response(client_address)
 
+
 def send_password_error_response(client_address):
-    response = {"type": "ERR", "message": "IP_REGISTERED_WITH_DIFFERENT_PASSWORD"}
+    response = "ERR IP_REGISTERED_WITH_DIFFERENT_PASSWORD"
     send_message(client_address, response)
 
 def handle_list_request(client_address, clients):
     if client_address in clients:
         files_list = generate_files_list(clients)
-        response = {"type": "LST", "files": files_list}
+        response = files_list
         send_message(client_address, response)
     else:
         send_error_response(client_address)
@@ -101,39 +112,50 @@ def generate_files_list(clients):
         for file in files:
             md5, name = file.values()
             file_entry = f"{md5},{name}"
-            clients_list = ";".join([f"{address[0]}:{address[1]}"])
+            clients_list = ";".join([f"{address[0]}:{clients[address]['port']}"])
             files_list.append(f"{file_entry},{clients_list}")
 
     return ";".join(files_list)
 
 def handle_disconnect(client_address, message, clients):
-    password = message.get("password")
-    port = message.get("port")
 
-    if client_address in clients and password and port:
-        if clients[client_address]["password"] == password:
-            del clients[client_address]
-            send_disconnect_response(client_address)
-        else:
-            send_password_error_response(client_address)
+    split = split_req_info(message)
+    password = None
+    port = None
+
+
+    if split != None and len(split) >= 2:
+        _, password, port, *_ = split
     else:
         send_error_response(client_address)
+    
+    if client_address in clients and password and port:
+        if check_password(clients[client_address]["password"], password):
+            if clients[client_address]["password"] == password:
+                del clients[client_address]
+                send_disconnect_response(client_address)
+            else:
+                send_password_error_response(client_address)
+
 
 def send_disconnect_response(client_address):
-    response = {"type": "OK", "message": "CLIENT_FINISHED"}
+    response = "OK CLIENT_FINISHED"
     send_message(client_address, response)
 
 def send_registration_response(client_address, num_registered_files):
-    response = {"type": "OK", "message": f"{num_registered_files}_REGISTERED_FILES"}
-    send_message(client_address, response)
-
-def send_success_response(client_address):
-    response = {"type": "OK"}
+    response = "OK " f"{num_registered_files}_REGISTERED_FILES"
     send_message(client_address, response)
 
 def send_message(client_address, message):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
-        client_socket.sendto(json.dumps(message).encode(), client_address)
+        client_socket.sendto(message.encode(), client_address)
+
+def check_password(req_password, ip_password):
+    if req_password == ip_password:
+        return True
+    else:
+        return False
+
 
 def start_server(host, port):
     clients = {}
@@ -158,4 +180,4 @@ def start_server(host, port):
                 send_error_response(client_address)
 
 # Start the server
-start_server("127.0.0.1", 8000)
+start_server("127.0.0.1", 54494)
