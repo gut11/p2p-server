@@ -97,6 +97,7 @@ def send_password_error_response(client_address):
     send_message(client_address, response)
 
 def handle_list_request(client_address, clients):
+    print(clients)
     if client_address in clients:
         files_list = generate_files_list(clients)
         response = files_list
@@ -157,7 +158,7 @@ def check_password(req_password, ip_password):
         return False
 
 
-def start_server(host, port):
+def start_server(host="", port=54494):
     clients = {}
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server_socket:
         server_socket.bind((host, port))
@@ -180,4 +181,4 @@ def start_server(host, port):
                 send_error_response(client_address)
 
 # Start the server
-start_server("127.0.0.1", 54494)
+start_server()
