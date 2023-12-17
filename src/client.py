@@ -26,6 +26,9 @@ def parse_args():
 def main():
     args = vars(parse_args())
 
+    print(args)
+    print("salada de batata")
+
     start_node_server(**args)
 
 if __name__ == "__main__":

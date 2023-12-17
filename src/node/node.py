@@ -24,7 +24,7 @@ def create_udp_socket():
 
 
 def send_udp_message(socket, message, server_address):
-    timeout = 5
+    timeout = 25
     max_retries = 4
     socket.settimeout(timeout)
     last_exception = None
@@ -268,6 +268,7 @@ def start_tcp_server(server_ready, client_info):
 
 def start_node_server(host="127.0.0.1", file_dir="./files"):
     server_address = (host, 54494)
+    print(server_address)
     download_dir = "./p2p-downloads"
     user_input = 0
     menu_options = ["List files", "Get file", "Exit"]
@@ -282,7 +283,7 @@ def start_node_server(host="127.0.0.1", file_dir="./files"):
                 "address": ("127.0.0.1", 4000),
             }
         ],
-        "host": host,
+        "host": "",
         "port": -1,
     }
     create_download_dir(download_dir)
